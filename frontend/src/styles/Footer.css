@@ -1,0 +1,269 @@
+/* =========================================
+   FOOTER BIC BTP — calqué sur le modèle
+   "Banner Design" (panneau + diagonales)
+   ========================================= */
+
+.site-footer {
+  margin-top: auto;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  background: #ffffff;
+}
+
+/* --- BANDEAU PRINCIPAL --- */
+.footer-main {
+  display: flex;
+  position: relative;
+  min-height: 300px;
+  overflow: hidden;
+  background: #FBFCFE; /* fond très clair du modèle */
+}
+
+/* --- PANNEAU GAUCHE (Bleu foncé + coupe diagonale) --- */
+.footer-brand-panel {
+  width: 40%;
+  background-color: #0E2A5C;           /* Navy BIC BTP */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 90px;                  /* place pour les diagonales */
+  z-index: 2;
+  /* La coupe diagonale identique au modèle */
+  clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%);
+}
+
+/* Bande cyan / bleu vif (1ʳᵉ diagonale) */
+.footer-brand-panel::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  background: transparent;
+  border-right: 26px solid #1E5BD8;     /* Bleu vif */
+  transform: skewX(-8deg) translateX(28px);
+  z-index: -1;
+}
+
+/* Bande bleu très clair (2ᵉ diagonale) */
+.footer-brand-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  background: transparent;
+  border-right: 6px solid #DCE6F7;      /* Bleu très clair */
+  transform: skewX(-8deg) translateX(58px);
+  z-index: -1;
+}
+
+.brand-content {
+  text-align: right;
+  position: relative;
+  z-index: 10;
+}
+
+.brand-logo {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 18px 0;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.brand-tagline {
+  font-size: 0.8rem;
+  letter-spacing: 2.5px;
+  color: #9db9e8;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+}
+
+.brand-sub {
+  font-size: 0.72rem;
+  letter-spacing: 2px;
+  color: #6b88b5;
+  margin: 0;
+}
+
+/* --- PANNEAU DROIT (Fond blanc / gris très clair) --- */
+.footer-content-panel {
+  width: 60%;
+  background-color: #FBFCFE;
+  display: flex;
+  align-items: center;
+  padding: 48px 60px 48px 120px;       /* padding gauche pour aérer la diagonale */
+}
+
+.footer-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  width: 100%;
+}
+
+.footer-col h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.95rem;
+  color: #0E2A5C;
+  margin: 0 0 20px 0;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+/* Petit trait bleu sous chaque titre (rappel du modèle) */
+.footer-col h4::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 28px;
+  height: 2px;
+  background: #1E5BD8;
+}
+
+.footer-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-col a {
+  color: #5a6a83;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s, padding-left 0.2s;
+}
+
+.footer-col a:hover {
+  color: #1E5BD8;
+  padding-left: 4px;
+}
+
+.footer-col li {
+  color: #5a6a83;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.footer-col strong {
+  color: #0E2A5C;
+  font-weight: 500;
+  display: block;
+}
+
+/* Contact : label au-dessus de la valeur */
+.contact-label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8ba3c7;
+  margin-bottom: 2px;
+}
+
+.footer-legal p {
+  color: #8ba3c7;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  margin: 0 0 14px 0;
+}
+
+.footer-legal .gammes {
+  color: #5a6a83;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.footer-legal .gammes strong {
+  display: inline;
+  color: #1E5BD8;
+}
+
+/* --- BARRE INFÉRIEURE (bleu plein, comme le bandeau bas du modèle) --- */
+.footer-bottom-bar {
+  background: #0E2A5C;
+  padding: 16px 0;
+}
+
+.footer-bottom-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.footer-bottom-content p {
+  margin: 0;
+}
+
+.footer-bottom-links {
+  display: flex;
+  gap: 24px;
+}
+
+.footer-bottom-links a {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-bottom-links a:hover {
+  color: #ffffff;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 1024px) {
+  .footer-main {
+    flex-direction: column;
+  }
+
+  .footer-brand-panel {
+    width: 100%;
+    clip-path: none;                     /* on désactive la diagonale */
+    padding: 48px 20px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* on cache les décorations diagonales sur mobile */
+  .footer-brand-panel::after,
+  .footer-brand-panel::before {
+    display: none;
+  }
+
+  .brand-content {
+    text-align: center;
+  }
+
+  .footer-content-panel {
+    width: 100%;
+    padding: 40px 20px;
+  }
+
+  .footer-columns {
+    grid-template-columns: 1fr;          /* une seule colonne sur mobile */
+    gap: 32px;
+  }
+
+  .footer-bottom-content {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+    padding: 0 20px;
+  }
+}

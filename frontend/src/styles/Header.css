@@ -1,0 +1,127 @@
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(251, 252, 254, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-light, #DCE6F7);
+  height: 80px;
+  display: flex;
+  align-items: center;
+}
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--color-navy, #0E2A5C);
+}
+
+.logo img {
+  height: 40px;
+  width: auto;
+}
+
+.desktop-nav {
+  display: flex;
+  gap: 28px;
+}
+
+.desktop-nav a {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-main, #3a4a63);
+  transition: color 0.2s;
+}
+
+.desktop-nav a:hover {
+  color: var(--color-blue, #1E5BD8);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-devis {
+  background: var(--color-blue, #1E5BD8);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.btn-devis:hover {
+  background: #1549b8;
+}
+
+.mobile-toggle {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--color-navy, #0E2A5C);
+  cursor: pointer;
+}
+
+.mobile-nav {
+  display: none;
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-bottom: 1px solid var(--color-light, #DCE6F7);
+  padding: 20px;
+  box-shadow: 0 10px 20px rgba(14,42,92,0.05);
+}
+
+.mobile-nav.open {
+  display: block;
+}
+
+.mobile-nav nav {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-nav a {
+  font-size: 1.1rem;
+  color: var(--color-navy, #0E2A5C);
+  font-weight: 500;
+}
+
+.btn-devis-mobile {
+  margin-top: 10px;
+  text-align: center;
+  background: var(--color-blue, #1E5BD8);
+  color: #fff !important;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+@media (max-width: 1024px) {
+  .desktop-nav {
+    display: none;
+  }
+  .btn-devis {
+    display: none;
+  }
+  .mobile-toggle {
+    display: block;
+  }
+}
