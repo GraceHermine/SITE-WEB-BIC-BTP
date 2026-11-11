@@ -4,7 +4,7 @@ import "../styles/Finitions.css";
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 /* =========================================================
-   DONNÉES — fallback local (calqué sur le PPT slides 9, 14, 20-21)
+   DONNÉES — contenu enrichi
    ========================================================= */
 
 const GAMMES = [
@@ -13,7 +13,7 @@ const GAMMES = [
     name: "Essentiel",
     tagline: "Le nécessaire, bien fait",
     description:
-      "Tout ce qu'il faut pour habiter. Des matériaux fiables, une pose soignée, zéro fioriture. La maison est prête, solide, à vous.",
+      "Tout ce qu'il faut pour habiter, sans superflu. Des matériaux fiables, une pose soignée, un budget maîtrisé. La maison est prête, solide, à vous.",
     color: "#5a6a83",
     coef: 1,
   },
@@ -22,7 +22,7 @@ const GAMMES = [
     name: "Confort",
     tagline: "Le bon équilibre",
     description:
-      "Le niveau que nous recommandons le plus souvent. De meilleurs matériaux, des détails qui changent le quotidien, un budget encore maîtrisé.",
+      "Le niveau que nous recommandons le plus souvent. De meilleurs matériaux, des détails qui changent le quotidien, un budget encore raisonnable.",
     color: "#1E5BD8",
     coef: 1.35,
   },
@@ -42,7 +42,8 @@ const POSTES = [
     id: "sols",
     title: "Sols & carrelage",
     icon: "▦",
-    description: "Le premier contact avec la maison. Grands formats, joints fins, pose millimétrée.",
+    description:
+      "Le premier contact avec la maison. Un sol bien choisi change la perception d'un espace avant même qu'on y entre.",
     options: {
       essentiel: "Grès cérame 60×60, pose droite",
       confort: "Grès cérame 80×80, pose calepinée",
@@ -53,7 +54,8 @@ const POSTES = [
     id: "cuisine",
     title: "Cuisine équipée",
     icon: "◫",
-    description: "Le cœur de la maison. Agencement, plan de travail, rangements pensés.",
+    description:
+      "Le cœur de la maison. Agencement, plan de travail, rangements : tout est pensé pour le geste quotidien.",
     options: {
       essentiel: "Linéaire, plan stratifié, rangements fermés",
       confort: "En L ou en U, plan quartz, tiroirs coulissants",
@@ -64,7 +66,8 @@ const POSTES = [
     id: "sdb",
     title: "Salle de bain",
     icon: "◈",
-    description: "Le seul endroit où l'on est vraiment seul. Sanitaires, robinetterie, faïence.",
+    description:
+      "Le seul endroit où l'on est vraiment seul. Sanitaires, robinetterie, faïence : chaque détail compte.",
     options: {
       essentiel: "Douche à l'italienne, faïence blanche",
       confort: "Douche + vasque double, faïence grand format",
@@ -75,7 +78,8 @@ const POSTES = [
     id: "menuiseries",
     title: "Menuiseries",
     icon: "◧",
-    description: "Ce qui se touche tous les jours. Portes intérieures, placards, dressings.",
+    description:
+      "Ce qui se touche tous les jours. Portes intérieures, placards, dressings : la qualité se ressent au quotidien.",
     options: {
       essentiel: "Portes alvéolaires, placards standards",
       confort: "Portes âme pleine, placards sur mesure",
@@ -86,7 +90,8 @@ const POSTES = [
     id: "peinture",
     title: "Peinture & décor",
     icon: "◐",
-    description: "Ce qui donne l'ambiance. Couleurs, finitions murales, textures.",
+    description:
+      "Ce qui donne l'ambiance. Couleurs, finitions murales, textures : la personnalité de chaque pièce.",
     options: {
       essentiel: "Peinture mate blanche, plinthes simples",
       confort: "Deux teintes par pièce, plinthes profilées",
@@ -97,7 +102,8 @@ const POSTES = [
     id: "eclairage",
     title: "Éclairage",
     icon: "☼",
-    description: "Ce qui change tout sans qu'on le voie. Points lumineux, scénographie, LED.",
+    description:
+      "Ce qui change tout sans qu'on le voie. Points lumineux, scénographie, LED : la lumière sculpte l'espace.",
     options: {
       essentiel: "Points centraux par pièce",
       confort: "Spots encastrés + variateurs",
@@ -127,7 +133,13 @@ const TICKER_ITEMS = [
   "Salles de bain sur mesure",
   "Menuiseries à la demande",
   "Éclairage scénographié",
-  "3 gammes, 6 postes",
+  "3 gammes · 6 postes · 1 seule règle",
+];
+
+const HERO_STATS = [
+  { value: "3", label: "gammes au choix" },
+  { value: "6", label: "postes de finition" },
+  { value: "15 min", label: "pour cadrer votre projet" },
 ];
 
 async function fetchJson(path) {
@@ -160,9 +172,48 @@ function useReveal() {
   }, []);
 }
 
+
+function usePostesGridReveal() {
+  useEffect(() => {
+    const cards = document.querySelectorAll(".poste-card");
+    if (!cards.length) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-visible");
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+    );
+
+    cards.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+}
+
 /* =========================================================
    SOUS-COMPOSANTS
    ========================================================= */
+
+/* Blocs de construction animés en arrière-plan du hero */
+function HeroBlocks() {
+  // Grille 4×5 = 20 blocs. On masque quelques blocs pour dessiner une silhouette.
+  const EMPTY = new Set([3, 7, 12, 18]);
+  return (
+    <div className="finitions-hero-blocks" aria-hidden>
+      {Array.from({ length: 20 }, (_, i) => (
+        <span
+          key={i}
+          className={`finitions-hero-block ${EMPTY.has(i) ? "is-empty" : ""}`}
+        />
+      ))}
+    </div>
+  );
+}   
 
 function Ticker() {
   const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
@@ -209,7 +260,10 @@ export default function Finitions() {
   const [activePoste, setActivePoste] = useState(POSTES[0].id);
   const [loading, setLoading] = useState(true);
 
+  const configRef = useRef(null);
+
   useReveal();
+  usePostesGridReveal();
 
   /* Chargement API (optionnel — fallback local) */
   useEffect(() => {
@@ -225,25 +279,44 @@ export default function Finitions() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const gamme = useMemo(() => GAMMES.find((g) => g.id === activeGamme), [activeGamme]);
-  const poste = useMemo(() => postes.find((p) => p.id === activePoste), [postes, activePoste]);
+  const poste = useMemo(
+    () => postes.find((p) => p.id === activePoste),
+    [postes, activePoste]
+  );
   const ambiance = AMBIANCES[activeGamme];
+
+  /* Scroll doux vers le configurateur quand on choisit une gamme */
+  const handleSelectGamme = (id) => {
+    setActiveGamme(id);
+    if (configRef.current) {
+      const rect = configRef.current.getBoundingClientRect();
+      const isVisible = rect.top < window.innerHeight * 0.7;
+      if (!isVisible) {
+        configRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
 
   return (
     <main className="finitions-page">
-
       {/* ============ HERO ============ */}
       <section className="finitions-hero">
         <div className="finitions-hero-bg" aria-hidden />
+        <div className="finitions-hero-scan" aria-hidden />
+        <HeroBlocks />
         <div className="container finitions-hero-content">
           <span className="badge">
             <span className="badge-dot" /> Notre différence
           </span>
           <h1>
-            Le gros œuvre, c'est notre affaire.<br />
+            Le gros œuvre, c'est notre affaire.
+            <br />
             <span>Le reste, c'est vous.</span>
           </h1>
           <p>
@@ -260,6 +333,15 @@ export default function Finitions() {
               Demander un devis
             </a>
           </div>
+
+          <div className="finitions-hero-stats">
+            {HERO_STATS.map((s) => (
+              <div className="finitions-hero-stat" key={s.label}>
+                <strong>{s.value}</strong>
+                <span>{s.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -271,7 +353,9 @@ export default function Finitions() {
         <div className="container">
           <div className="section-header reveal">
             <span className="section-label">Les gammes</span>
-            <h2>Trois niveaux. Un seul objectif : vous ressembler.</h2>
+            <h2>
+              Trois niveaux. <em>Un seul objectif :</em> vous ressembler.
+            </h2>
             <p>
               La gamme ne change pas la structure. Elle change ce que vous touchez,
               voyez et vivez au quotidien. Choisissez votre point de départ — vous
@@ -289,7 +373,7 @@ export default function Finitions() {
                 <GammeCard
                   gamme={g}
                   active={activeGamme === g.id}
-                  onSelect={setActiveGamme}
+                  onSelect={handleSelectGamme}
                 />
               </div>
             ))}
@@ -298,7 +382,7 @@ export default function Finitions() {
       </section>
 
       {/* ============ CONFIGURATEUR INTERACTIF ============ */}
-      <section className="section configurateur">
+      <section className="section configurateur" ref={configRef}>
         <div className="container">
           <div className="section-header reveal">
             <span className="section-label">Configurateur</span>
@@ -310,12 +394,14 @@ export default function Finitions() {
           </div>
 
           <div className="config-layout reveal">
-
             {/* Colonne gauche : liste des postes */}
             <div className="config-postes">
               <div className="config-postes-header">
                 <span className="config-postes-label">6 postes</span>
-                <span className="config-postes-gamme" style={{ color: gamme.color }}>
+                <span
+                  className="config-postes-gamme"
+                  style={{ color: gamme.color }}
+                >
                   Gamme {gamme.name}
                 </span>
               </div>
@@ -323,12 +409,19 @@ export default function Finitions() {
                 {postes.map((p) => (
                   <li key={p.id}>
                     <button
-                      className={`config-poste-btn ${activePoste === p.id ? "is-active" : ""}`}
+                      className={`config-poste-btn ${
+                        activePoste === p.id ? "is-active" : ""
+                      }`}
                       onClick={() => setActivePoste(p.id)}
+                      aria-pressed={activePoste === p.id}
                     >
-                      <span className="config-poste-icon" aria-hidden>{p.icon}</span>
+                      <span className="config-poste-icon" aria-hidden>
+                        {p.icon}
+                      </span>
                       <span className="config-poste-title">{p.title}</span>
-                      <span className="config-poste-arrow" aria-hidden>→</span>
+                      <span className="config-poste-arrow" aria-hidden>
+                        →
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -338,7 +431,9 @@ export default function Finitions() {
             {/* Colonne droite : détail du poste actif */}
             <div className="config-detail" key={`${poste?.id}-${activeGamme}`}>
               <div className="config-detail-head">
-                <span className="config-detail-icon" aria-hidden>{poste?.icon}</span>
+                <span className="config-detail-icon" aria-hidden>
+                  {poste?.icon}
+                </span>
                 <div>
                   <h3>{poste?.title}</h3>
                   <p className="config-detail-desc">{poste?.description}</p>
@@ -348,25 +443,37 @@ export default function Finitions() {
               {/* Comparaison des 3 gammes pour ce poste */}
               <div className="config-options">
                 {GAMMES.map((g) => (
-                  <div
+                  <button
                     key={g.id}
-                    className={`config-option ${activeGamme === g.id ? "is-active" : ""}`}
+                    type="button"
+                    className={`config-option ${
+                      activeGamme === g.id ? "is-active" : ""
+                    }`}
                     style={{ "--opt-color": g.color }}
+                    onClick={() => setActiveGamme(g.id)}
+                    aria-pressed={activeGamme === g.id}
                   >
-                    <span className="config-option-label" style={{ color: g.color }}>
+                    <span
+                      className="config-option-label"
+                      style={{ color: g.color }}
+                    >
                       {g.name}
                     </span>
                     <p>{poste?.options?.[g.id]}</p>
                     {activeGamme === g.id && (
-                      <span className="config-option-check" aria-hidden>✓</span>
+                      <span className="config-option-check" aria-hidden>
+                        ✓
+                      </span>
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
 
               {/* Ambiance visuelle */}
               <div className="config-ambiance">
-                <span className="config-ambiance-label">Ambiance {gamme.name}</span>
+                <span className="config-ambiance-label">
+                  Ambiance {gamme.name}
+                </span>
                 <p className="config-ambiance-desc">{ambiance.label}</p>
                 <div className="config-swatches">
                   {ambiance.swatches.map((c, i) => (
@@ -382,7 +489,10 @@ export default function Finitions() {
 
               {/* CTA contextuel */}
               <div className="config-cta">
-                <a href={`/contact?gamme=${activeGamme}&poste=${activePoste}`} className="btn btn-primary">
+                <a
+                  href={`/contact?gamme=${activeGamme}&poste=${activePoste}`}
+                  className="btn btn-primary"
+                >
                   Demander un devis {gamme.name} <span aria-hidden>→</span>
                 </a>
               </div>
@@ -391,45 +501,47 @@ export default function Finitions() {
         </div>
       </section>
 
-      {/* ============ LES 6 POSTES EN DÉTAIL ============ */}
-      <section className="section postes-detail">
+        {/* ============ LES 6 POSTES EN DÉTAIL ============ */}
+        <section className="section postes-detail">
         <div className="container">
-          <div className="section-header reveal">
+            <div className="section-header reveal">
             <span className="section-label">Les 6 postes</span>
             <h2>Ce sur quoi vous décidez.</h2>
             <p>
-              Chaque poste est un choix. Voici ce qu'il couvre, ce qu'il change,
-              et pourquoi il compte.
+                Chaque poste est un choix. Voici ce qu'il couvre, ce qu'il change,
+                et pourquoi il compte.
             </p>
-          </div>
+            </div>
 
-          <div className="postes-grid">
+            <div className="postes-grid">
             {postes.map((p, i) => (
-              <article
-                className="poste-card reveal"
+                <article
+                className="poste-card"
                 key={p.id}
-                style={{ transitionDelay: `${i * 60}ms` }}
-              >
-                <span className="poste-icon" aria-hidden>{p.icon}</span>
+                style={{ transitionDelay: `${i * 90}ms` }}
+                >
+                <span className="poste-icon" aria-hidden>
+                    {p.icon}
+                </span>
                 <h3>{p.title}</h3>
                 <p>{p.description}</p>
                 <div className="poste-options-mini">
-                  {GAMMES.map((g) => (
+                    {GAMMES.map((g) => (
                     <span
-                      key={g.id}
-                      className="poste-mini-pill"
-                      style={{ "--pill-color": g.color }}
-                      title={`${g.name} : ${p.options[g.id]}`}
+                        key={g.id}
+                        className="poste-mini-pill"
+                        style={{ "--pill-color": g.color }}
+                        title={`${g.name} : ${p.options[g.id]}`}
                     >
-                      {g.name}
+                        {g.name}
                     </span>
-                  ))}
+                    ))}
                 </div>
-              </article>
+                </article>
             ))}
-          </div>
+            </div>
         </div>
-      </section>
+        </section>
 
       {/* ============ AMBIANCES PAR GAMME ============ */}
       <section className="section ambiances">
@@ -438,8 +550,8 @@ export default function Finitions() {
             <span className="section-label">Les ambiances</span>
             <h2>Ce que chaque gamme raconte.</h2>
             <p>
-              Trois gammes, trois univers. Cliquez sur une ambiance pour voir
-              ce qu'elle change dans la maison.
+              Trois gammes, trois univers. Cliquez sur une ambiance pour voir ce
+              qu'elle change dans la maison.
             </p>
           </div>
 
@@ -449,9 +561,14 @@ export default function Finitions() {
               return (
                 <button
                   key={g.id}
-                  className={`ambiance-card reveal ${activeGamme === g.id ? "is-active" : ""}`}
-                  onClick={() => setActiveGamme(g.id)}
-                  style={{ transitionDelay: `${i * 100}ms`, "--amb-color": g.color }}
+                  className={`ambiance-card reveal ${
+                    activeGamme === g.id ? "is-active" : ""
+                  }`}
+                  onClick={() => handleSelectGamme(g.id)}
+                  style={{
+                    transitionDelay: `${i * 100}ms`,
+                    "--amb-color": g.color,
+                  }}
                   aria-pressed={activeGamme === g.id}
                 >
                   <div
@@ -462,12 +579,18 @@ export default function Finitions() {
                   >
                     <div className="ambiance-swatches">
                       {amb.swatches.map((c, j) => (
-                        <span key={j} className="swatch-large" style={{ background: c }} />
+                        <span
+                          key={j}
+                          className="swatch-large"
+                          style={{ background: c }}
+                        />
                       ))}
                     </div>
                   </div>
                   <div className="ambiance-body">
-                    <span className="ambiance-name" style={{ color: g.color }}>{g.name}</span>
+                    <span className="ambiance-name" style={{ color: g.color }}>
+                      {g.name}
+                    </span>
                     <h3>{amb.label}</h3>
                     <p>{g.tagline}</p>
                   </div>
@@ -485,7 +608,7 @@ export default function Finitions() {
           <h2>Vos finitions, votre signature.</h2>
           <p>
             Un échange de 15 minutes suffit pour cadrer votre gamme, vos postes
-            prioritaires, votre budget finitions.
+            prioritaires et votre budget finitions. Sans engagement.
           </p>
           <div className="cta-actions">
             <a href="/contact" className="btn btn-primary">
@@ -502,7 +625,6 @@ export default function Finitions() {
           </div>
         </div>
       </section>
-
     </main>
   );
 }
