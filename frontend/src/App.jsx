@@ -5,6 +5,7 @@ import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import Method from './pages/Method.jsx';
 import Maisons from './pages/Maisons.jsx';
+import Finitions from './pages/Finitions.jsx';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="/" element={<Home />} />        {/* ← AJOUT */}
           <Route path="/method" element={<Method />} />{/* ← AJOUT */}
           <Route path="/maisons" element={<Maisons />} />
+          <Route path="/finitions" element={<Finitions />} />
         </Routes>                 
       </main>
       <Footer />
