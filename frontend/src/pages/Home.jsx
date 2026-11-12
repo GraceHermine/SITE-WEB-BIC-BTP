@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import "../styles/Home.css";  
+import "../styles/Home.css";
 import { Link } from "react-router-dom";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+import { adaptHeroSlide, adaptHouse } from "../api/adapters";
+import { useApi } from "../hooks/useApi";
+import { useInfo } from "../hooks/useInfo";
 
 /* =========================================================
-   DONNÉES — reformulées, pas recopiées du PPT
+   FALLBACKS (affichés si l'API est indisponible)
    ========================================================= */
 
 const FALLBACK_HERO = [
@@ -29,7 +30,7 @@ const FALLBACK_HERO = [
   },
 ];
 
-const FALLBACK_HOUSES = [
+const FALLBACK_HOUSES_RAW = [
   {
     name: "Modèle F3",
     surface: "85 m²",
@@ -57,7 +58,13 @@ const FALLBACK_HOUSES = [
   },
 ];
 
-/* Ticker — la promesse en 4 mots qui défilent */
+/* Adapté UNE SEULE FOIS → références stables → pas de re-montage. */
+const FALLBACK_HOUSES = FALLBACK_HOUSES_RAW.map((h) => adaptHouse(h));
+
+/* =========================================================
+   CONTENU STATIQUE
+   ========================================================= */
+
 const TICKER_ITEMS = [
   "Murs coulés en 48 h",
   "Budget connu à la signature",
@@ -67,7 +74,6 @@ const TICKER_ITEMS = [
   "Délais tenus",
 ];
 
-/* Manifeste — 3 convictions, pas 3 piliers */
 const MANIFESTE = [
   {
     num: "01",
@@ -86,7 +92,6 @@ const MANIFESTE = [
   },
 ];
 
-/* Preuves — arguments, pas avantages génériques */
 const PREUVES = [
   {
     icon: "◆",
@@ -126,38 +131,71 @@ const STATS = [
   { value: 100, suffix: "%", label: "prix connu d'avance" },
 ];
 
-async function fetchJson(path) {
-  const res = await fetch(`${API_BASE}${path}`, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
 /* =========================================================
    HOOKS CUSTOM
    ========================================================= */
 
-/* Reveal au scroll (IntersectionObserver) */
-function useReveal() {
+/**
+ * Reveal au scroll — version robuste :
+ *  - révèle immédiatement les éléments déjà dans le viewport
+ *    (évite les cartes invisibles après un re-montage React) ;
+ *  - un MutationObserver rattrape les nœuds `.reveal` ajoutés
+ *    plus tard (ex. cartes arrivées de l'API).
+ */
+function useReveal(deps = []) {
   useEffect(() => {
-    const els = document.querySelectorAll(".reveal");
-    if (!els.length) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("is-visible");
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+    let io = null;
+
+    const revealIfVisible = (el) => {
+      const rect = el.getBoundingClientRect();
+      const inViewport =
+        rect.top < window.innerHeight &&
+        rect.bottom > 0 &&
+        rect.height > 0;
+      if (inViewport) {
+        el.classList.add("is-visible");
+        return true;
+      }
+      return false;
+    };
+
+    const setup = () => {
+      const els = document.querySelectorAll(".reveal:not(.is-visible)");
+      if (!els.length) return;
+
+      if (!io) {
+        io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((e) => {
+              if (e.isIntersecting) {
+                e.target.classList.add("is-visible");
+                io.unobserve(e.target);
+              }
+            });
+          },
+          { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+        );
+      }
+
+      els.forEach((el) => {
+        if (!revealIfVisible(el)) io.observe(el);
+      });
+    };
+
+    setup();
+
+    const mo = new MutationObserver(() => setup());
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      if (io) io.disconnect();
+      mo.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 }
 
-/* Compteur animé (déclenché quand la section entre dans le viewport) */
+/** Compteur animé. */
 function useCountUp(target, duration = 1400, start = false) {
   const [value, setValue] = useState(0);
   useEffect(() => {
@@ -166,7 +204,7 @@ function useCountUp(target, duration = 1400, start = false) {
     const t0 = performance.now();
     const tick = (now) => {
       const p = Math.min((now - t0) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      const eased = 1 - Math.pow(1 - p, 3);
       setValue(Math.round(target * eased));
       if (p < 1) raf = requestAnimationFrame(tick);
     };
@@ -176,7 +214,7 @@ function useCountUp(target, duration = 1400, start = false) {
   return value;
 }
 
-/* Parallaxe légère sur le hero (translateY au scroll) */
+/** Parallaxe légère sur le hero. */
 function useParallax(ref, factor = 0.25) {
   useEffect(() => {
     const onScroll = () => {
@@ -189,7 +227,7 @@ function useParallax(ref, factor = 0.25) {
   }, [ref, factor]);
 }
 
-/* Magnétisme (bouton qui suit légèrement le curseur) */
+/** Bouton magnétique. */
 function useMagnet(ref, strength = 0.25) {
   useEffect(() => {
     const el = ref.current;
@@ -200,7 +238,9 @@ function useMagnet(ref, strength = 0.25) {
       const y = e.clientY - (r.top + r.height / 2);
       el.style.transform = `translate(${x * strength}px, ${y * strength}px)`;
     };
-    const onLeave = () => { el.style.transform = "translate(0,0)"; };
+    const onLeave = () => {
+      el.style.transform = "translate(0,0)";
+    };
     el.addEventListener("mousemove", onMove);
     el.addEventListener("mouseleave", onLeave);
     return () => {
@@ -217,17 +257,25 @@ function useMagnet(ref, strength = 0.25) {
 function StatItem({ value, suffix, label, delay }) {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const io = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); io.disconnect(); } },
+      ([e]) => {
+        if (e.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
       { threshold: 0.4 }
     );
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
   const n = useCountUp(value, 1400, visible);
+
   return (
     <div className="stat" ref={ref} style={{ transitionDelay: `${delay}ms` }}>
       <span className="stat-value">
@@ -240,7 +288,7 @@ function StatItem({ value, suffix, label, delay }) {
 }
 
 function Ticker() {
-  const items = [...TICKER_ITEMS, ...TICKER_ITEMS]; // duplication pour boucle infinie
+  const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
   return (
     <div className="ticker" aria-hidden>
       <div className="ticker-track">
@@ -265,63 +313,135 @@ function HeroCta() {
   );
 }
 
+/** Bandeau d'état pour les sections chargées par API. */
+function SectionStatus({ loading, error, onRetry, loadedMessage }) {
+  if (loading) {
+    return (
+      <p className="legal-text" role="status" aria-live="polite">
+        Chargement…
+      </p>
+    );
+  }
+  if (error) {
+    return (
+      <div className="legal-text" role="alert">
+        {loadedMessage || "Contenu indisponible"} —{" "}
+        <button
+          type="button"
+          onClick={onRetry}
+          className="btn btn-outline"
+          style={{ padding: "8px 16px", marginLeft: 8 }}
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+  return null;
+}
+
 /* =========================================================
    PAGE
    ========================================================= */
+
 function Home() {
-  const [activeImage, setActiveImage] = useState(0);
+  /* -------- Hero -------- */
+  const {
+    data: heroData,
+    error: heroError,
+    reload: reloadHero,
+  } = useApi("/api/hero/", { adapt: adaptHeroSlide });
+
   const [heroImages, setHeroImages] = useState(FALLBACK_HERO);
-  const [houses, setHouses] = useState(FALLBACK_HOUSES);
+  const [activeImage, setActiveImage] = useState(0);
   const autoplay = useRef(null);
   const heroBgRef = useRef(null);
 
   useParallax(heroBgRef, 0.18);
 
-  /* API */
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [heroData, housesData] = await Promise.all([
-          fetchJson("/api/hero/"),
-          fetchJson("/api/houses/"),
-        ]);
-        if (cancelled) return;
-        if (Array.isArray(heroData) && heroData.length) setHeroImages(heroData);
-        if (Array.isArray(housesData) && housesData.length) setHouses(housesData);
-      } catch (err) {
-        console.warn("API non disponible, données locales utilisées.", err);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    if (heroData && heroData.length > 0) {
+      setHeroImages(heroData);
+      setActiveImage(0);
+    } else if (heroError) {
+      setHeroImages(FALLBACK_HERO);
+      setActiveImage(0);
+    }
+  }, [heroData, heroError]);
 
-  /* Autoplay hero */
+  /* Autoplay — proprement nettoyé */
   useEffect(() => {
+    if (!heroImages.length) return;
     autoplay.current = setInterval(() => {
       setActiveImage((p) => (p + 1) % heroImages.length);
     }, 6500);
-    return () => clearInterval(autoplay.current);
+    return () => {
+      if (autoplay.current) {
+        clearInterval(autoplay.current);
+        autoplay.current = null;
+      }
+    };
   }, [heroImages.length]);
 
-  useReveal();
+  const stopAutoplay = useCallback(() => {
+    if (autoplay.current) {
+      clearInterval(autoplay.current);
+      autoplay.current = null;
+    }
+  }, []);
 
-  const changeImage = useCallback((dir) => {
-    clearInterval(autoplay.current);
-    setActiveImage((p) => (p + dir + heroImages.length) % heroImages.length);
-  }, [heroImages.length]);
+  const changeImage = useCallback(
+    (dir) => {
+      stopAutoplay();
+      setActiveImage((p) => (p + dir + heroImages.length) % heroImages.length);
+    },
+    [heroImages.length, stopAutoplay]
+  );
+
+  const selectImage = useCallback(
+    (idx) => {
+      stopAutoplay();
+      setActiveImage(idx);
+    },
+    [stopAutoplay]
+  );
 
   const current = heroImages[activeImage];
 
+  /* -------- Houses -------- */
+  const {
+    data: housesData,
+    loading: housesLoading,
+    error: housesError,
+    reload: reloadHouses,
+  } = useApi("/api/houses/", { adapt: adaptHouse });
+
+  // Références stables : pas de .map(adaptHouse) à chaque render.
+  const houses =
+    housesData && housesData.length > 0 ? housesData : FALLBACK_HOUSES;
+
+  /* -------- Info (coordonnées) -------- */
+  const { info } = useInfo();
+
+  const whatsappUrl = info?.whatsapp_number
+    ? `https://wa.me/${String(info.whatsapp_number).replace(/\D/g, "")}`
+    : "https://wa.me/22500000000";
+
+  /* -------- Reveal --------
+   * On ne dépend PAS de houses.length (sinon l'observer est recréé
+   * et les cartes déjà révélées clignotent). Le MutationObserver
+   * interne au hook gère les cartes ajoutées après coup.
+   */
+  useReveal([heroImages.length]);
+
   return (
     <main className="home-page">
-
       {/* ============ HERO ============ */}
       <section className="hero">
         <div className="hero-parallax" ref={heroBgRef}>
           {heroImages.map((img, i) => (
             <div
-              key={i}
+              key={img.id ?? i}
               className={`hero-bg ${i === activeImage ? "is-active" : ""}`}
               style={{ backgroundImage: `url(${img.image_url})` }}
               aria-hidden={i !== activeImage}
@@ -331,7 +451,9 @@ function Home() {
 
         <div className="hero-overlay" />
         <div className="hero-noise" aria-hidden />
-        <div className="hero-bg-text" aria-hidden>BIC BTP</div>
+        <div className="hero-bg-text" aria-hidden>
+          BIC BTP
+        </div>
 
         <div className="container hero-content">
           <div className="hero-text">
@@ -354,16 +476,25 @@ function Home() {
             </p>
 
             <div className="hero-actions">
-              <HeroCta /> 
+              <HeroCta />
               <Link to="/method" className="btn btn-ghost">
                 Voir la méthode
               </Link>
             </div>
 
             <ul className="hero-trust">
-              <li><strong>48 h</strong><span>pour monter les murs</span></li>
-              <li><strong>0 surprise</strong><span>sur le prix</span></li>
-              <li><strong>100 %</strong><span>finitions sur mesure</span></li>
+              <li>
+                <strong>48 h</strong>
+                <span>pour monter les murs</span>
+              </li>
+              <li>
+                <strong>0 surprise</strong>
+                <span>sur le prix</span>
+              </li>
+              <li>
+                <strong>100 %</strong>
+                <span>finitions sur mesure</span>
+              </li>
             </ul>
           </div>
 
@@ -382,9 +513,10 @@ function Home() {
               <div className="thumbnails">
                 {heroImages.map((img, idx) => (
                   <button
-                    key={idx}
+                    key={img.id ?? idx}
+                    type="button"
                     className={`thumb ${activeImage === idx ? "active" : ""}`}
-                    onClick={() => { clearInterval(autoplay.current); setActiveImage(idx); }}
+                    onClick={() => selectImage(idx)}
                     aria-label={`Voir : ${img.title}`}
                   >
                     <img src={img.image_url} alt={img.title} />
@@ -393,8 +525,20 @@ function Home() {
               </div>
 
               <div className="controls">
-                <button onClick={() => changeImage(-1)} aria-label="Précédent">←</button>
-                <button onClick={() => changeImage(1)} aria-label="Suivant">→</button>
+                <button
+                  type="button"
+                  onClick={() => changeImage(-1)}
+                  aria-label="Précédent"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeImage(1)}
+                  aria-label="Suivant"
+                >
+                  →
+                </button>
               </div>
             </div>
 
@@ -402,10 +546,37 @@ function Home() {
               {heroImages.map((_, idx) => (
                 <span
                   key={idx}
-                  className={`hero-progress-seg ${activeImage === idx ? "is-active" : ""}`}
+                  className={`hero-progress-seg ${
+                    activeImage === idx ? "is-active" : ""
+                  }`}
                 />
               ))}
             </div>
+
+            {heroError && (
+              <div
+                className="legal-text"
+                role="alert"
+                style={{ color: "#fff", opacity: 0.7, fontSize: ".75rem" }}
+              >
+                Slides par défaut —{" "}
+                <button
+                  type="button"
+                  onClick={reloadHero}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "inherit",
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    padding: 0,
+                    font: "inherit",
+                  }}
+                >
+                  réessayer
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -414,7 +585,7 @@ function Home() {
           <span className="hero-scroll-line" />
         </div>
       </section>
-      
+
       {/* ============ TICKER ============ */}
       <Ticker />
 
@@ -432,12 +603,19 @@ function Home() {
         <div className="container">
           <div className="section-header reveal">
             <span className="section-label">Manifeste</span>
-            <h2>Trois convictions. <br />Pas trois slogans.</h2>
+            <h2>
+              Trois convictions. <br />
+              Pas trois slogans.
+            </h2>
           </div>
 
           <div className="manifeste-grid">
             {MANIFESTE.map((m, i) => (
-              <article className="manifeste-card reveal" key={m.num} style={{ transitionDelay: `${i * 100}ms` }}>
+              <article
+                className="manifeste-card reveal"
+                key={m.num}
+                style={{ transitionDelay: `${i * 100}ms` }}
+              >
                 <span className="manifeste-num">{m.num}</span>
                 <h3>{m.title}</h3>
                 <p>{m.text}</p>
@@ -458,7 +636,11 @@ function Home() {
 
           <div className="grid-4">
             {PREUVES.map((item, i) => (
-              <article className="card reveal" key={i} style={{ transitionDelay: `${i * 80}ms` }}>
+              <article
+                className="card reveal"
+                key={i}
+                style={{ transitionDelay: `${i * 80}ms` }}
+              >
                 <div className="icon">{item.icon}</div>
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
@@ -468,7 +650,7 @@ function Home() {
         </div>
       </section>
 
-      {/* ============ MÉTHODE (teaser) ============ */}
+      {/* ============ MÉTHODE ============ */}
       <section className="section methode">
         <div className="container split-layout">
           <div className="image-wrapper reveal">
@@ -533,14 +715,21 @@ function Home() {
             <span className="section-label">Là où tout se joue</span>
             <h2>Le temps gagné, on le met ici.</h2>
             <p>
-              Six postes de finition. Trois gammes. Une seule règle : vous décidez.
+              Six postes de finition. Trois gammes. Une seule règle : vous
+              décidez.
             </p>
           </div>
 
           <div className="grid-3">
             {FINITIONS.map((f, i) => (
-              <article className="finition-item reveal" key={i} style={{ transitionDelay: `${i * 60}ms` }}>
-                <span className="finition-icon" aria-hidden>{f.icon}</span>
+              <article
+                className="finition-item reveal"
+                key={i}
+                style={{ transitionDelay: `${i * 60}ms` }}
+              >
+                <span className="finition-icon" aria-hidden>
+                  {f.icon}
+                </span>
                 <h3>{f.title}</h3>
                 <p>{f.desc}</p>
               </article>
@@ -570,33 +759,59 @@ function Home() {
             </Link>
           </div>
 
-          <div className="grid-3">
-            {houses.map((house, i) => (
-              <article className="house-card reveal" key={i} style={{ transitionDelay: `${i * 100}ms` }}>
-                <div className="house-img">
-                  <img src={house.image_url} alt={house.name} loading="lazy" />
-                  <span className="surface">{house.surface}</span>
-                  {house.badge && <span className="house-badge">{house.badge}</span>}
-                </div>
-                <div className="house-body">
-                  <h3>{house.name}</h3>
-                  <p>{house.description}</p>
-                  <div className="price-row">
-                    <div>
-                      <small>À partir de</small>
-                      <strong>{house.price}</strong>
-                    </div>
-                    <Link to="/contact" className="btn-icon" aria-label={`Devis pour ${house.name}`}>
-                      →
-                    </Link>
+          <SectionStatus
+            loading={housesLoading}
+            error={housesError}
+            onRetry={reloadHouses}
+            loadedMessage="Catalogue indisponible"
+          />
+
+          {/* On ne rend les cartes qu'une fois le chargement terminé
+              (ou en cas d'erreur avec fallback) → pas de double montage. */}
+          {!housesLoading && (
+            <div className="grid-3">
+              {houses.map((house, i) => (
+                <article
+                  className="house-card reveal"
+                  key={`house-${house.id ?? house.slug ?? i}`}
+                  style={{ transitionDelay: `${i * 100}ms` }}
+                >
+                  <div className="house-img">
+                    <img
+                      src={house.image_url}
+                      alt={house.name}
+                      loading="lazy"
+                    />
+                    <span className="surface">{house.surface}</span>
+                    {house.badge && (
+                      <span className="house-badge">{house.badge}</span>
+                    )}
                   </div>
-                </div>
-              </article>
-            ))}
-          </div>
+                  <div className="house-body">
+                    <h3>{house.name}</h3>
+                    <p>{house.description}</p>
+                    <div className="price-row">
+                      <div>
+                        <small>À partir de</small>
+                        <strong>{house.price}</strong>
+                      </div>
+                      <Link
+                        to="/contact"
+                        className="btn-icon"
+                        aria-label={`Devis pour ${house.name}`}
+                      >
+                        →
+                      </Link>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
 
           <p className="legal-text">
-            * Visuels d'inspiration non contractuels. Finitions et équipements variables selon la gamme choisie.
+            * Visuels d'inspiration non contractuels. Finitions et équipements
+            variables selon la gamme choisie.
           </p>
         </div>
       </section>
@@ -605,19 +820,30 @@ function Home() {
       <section className="section cta">
         <div className="container cta-box reveal">
           <span className="cta-label">Prochaine étape</span>
-          <h2>Parlons de votre maison.<br />Pas de la nôtre.</h2>
-          <p>15 minutes suffisent pour cadrer votre projet, votre budget, votre calendrier.</p>
+          <h2>
+            Parlons de votre maison.
+            <br />
+            Pas de la nôtre.
+          </h2>
+          <p>
+            15 minutes suffisent pour cadrer votre projet, votre budget, votre
+            calendrier.
+          </p>
           <div className="cta-actions">
             <Link to="/contact" className="btn btn-primary">
               Demander un devis <span aria-hidden>→</span>
             </Link>
-            <Link to="https://wa.me/22500000000" className="btn btn-ghost" target="_blank" rel="noopener noreferrer">
+            <a
+              href={whatsappUrl}
+              className="btn btn-ghost"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               WhatsApp direct
-            </Link>
+            </a>
           </div>
         </div>
       </section>
-
     </main>
   );
 }

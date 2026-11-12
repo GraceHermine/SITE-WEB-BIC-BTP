@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "../styles/Maisons.css";
+import { useApi } from "../hooks/useApi";
+import { adaptHouse } from "../api/adapters";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -120,24 +122,32 @@ async function fetchJson(path) {
    HOOKS
    ========================================================= */
 
-function useReveal() {
+function useReveal(deps = []) {
   useEffect(() => {
-    const els = document.querySelectorAll(".reveal");
-    if (!els.length) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("is-visible");
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+    // On laisse un petit délai pour que React ait fini de peindre le DOM
+    const timer = setTimeout(() => {
+      const els = document.querySelectorAll(".reveal:not(.is-visible)");
+      if (!els.length) return;
+
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("is-visible");
+              io.unobserve(e.target);
+            }
+          });
+        },
+        { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+      );
+
+      els.forEach((el) => io.observe(el));
+
+      return () => io.disconnect();
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, deps);
 }
 
 /* =========================================================
@@ -297,9 +307,18 @@ function HouseModal({ house, onClose }) {
    PAGE
    ========================================================= */
 export default function Maisons() {
-  const [houses, setHouses] = useState(FALLBACK_HOUSES);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  /* -------- API -------- */
+  const {
+    data: housesData,
+    loading,
+    error,
+    reload,
+  } = useApi("/api/houses/", { adapt: adaptHouse });
+
+  /* API > fallback. Fallback local déjà à la bonne forme → pas de re-adapt. */
+  const houses =
+    housesData && housesData.length > 0 ? housesData : FALLBACK_HOUSES;
+
   const [selectedHouse, setSelectedHouse] = useState(null);
 
   const [filterChambres, setFilterChambres] = useState(0);
@@ -307,43 +326,27 @@ export default function Maisons() {
   const [filterBudget, setFilterBudget] = useState(0);
   const [sort, setSort] = useState("surface-asc");
 
-  useReveal();
-
-  /* Chargement API */
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchJson("/api/houses/");
-        if (cancelled) return;
-        if (Array.isArray(data) && data.length) setHouses(data);
-      } catch (err) {
-        console.warn("API indisponible, données locales utilisées.", err);
-        setError("API indisponible — affichage des modèles locaux.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
   /* Filtrage + tri */
   const filteredHouses = useMemo(() => {
     let list = [...houses];
 
     if (filterChambres > 0) list = list.filter((h) => h.chambres >= filterChambres);
-    if (filterSurface > 0) list = list.filter((h) => h.surface >= filterSurface);
-    if (filterBudget > 0) list = list.filter((h) => h.price <= filterBudget);
+    if (filterSurface > 0) list = list.filter((h) => h.surfaceRaw >= filterSurface);
+    if (filterBudget > 0) list = list.filter((h) => h.priceRaw <= filterBudget);
 
     switch (sort) {
-      case "surface-asc":  list.sort((a, b) => a.surface - b.surface); break;
-      case "surface-desc": list.sort((a, b) => b.surface - a.surface); break;
-      case "price-asc":    list.sort((a, b) => a.price - b.price); break;
-      case "price-desc":   list.sort((a, b) => b.price - a.price); break;
+      case "surface-asc":  list.sort((a, b) => a.surfaceRaw - b.surfaceRaw); break;
+      case "surface-desc": list.sort((a, b) => b.surfaceRaw - a.surfaceRaw); break;
+      case "price-asc":    list.sort((a, b) => a.priceRaw - b.priceRaw); break;
+      case "price-desc":   list.sort((a, b) => b.priceRaw - a.priceRaw); break;
       default: break;
     }
     return list;
   }, [houses, filterChambres, filterSurface, filterBudget, sort]);
+
+  // On passe filteredHouses et loading pour déclencher l'observer 
+  // dès que les cartes sont réellement dans le DOM
+  useReveal([filteredHouses, loading]);
 
   const resetFilters = () => {
     setFilterChambres(0);
@@ -356,7 +359,6 @@ export default function Maisons() {
 
   return (
     <main className="maisons-page">
-
       {/* ============ HERO ============ */}
       <section className="maisons-hero">
         <div className="maisons-hero-bg" aria-hidden />
@@ -371,11 +373,10 @@ export default function Maisons() {
           <p>
             Trois modèles. Trois façons d'habiter. Même méthode de construction,
             même niveau de finitions — seule la surface et l'organisation changent.
-            À vous de voir laquelle vous ressemble.
           </p>
           <div className="maisons-hero-actions">
             <a href="#catalogue" className="btn btn-primary">
-              Voir les 3 modèles <span aria-hidden>→</span>
+              Voir les {houses.length} modèles <span aria-hidden>→</span>
             </a>
             <a href="/methode" className="btn btn-ghost">
               Comprendre la méthode
@@ -387,59 +388,41 @@ export default function Maisons() {
       {/* ============ CATALOGUE ============ */}
       <section className="section catalogue" id="catalogue">
         <div className="container">
-
-          {/* Barre de filtres */}
           <div className="filters reveal">
             <div className="filter-group">
               <span className="filter-label">Chambres</span>
               <div className="filter-pills">
                 {CHAMBRES_OPTIONS.map((opt) => (
-                  <FilterPill
-                    key={opt.value}
-                    label={opt.label}
+                  <FilterPill key={opt.value} label={opt.label}
                     active={filterChambres === opt.value}
-                    onClick={() => setFilterChambres(opt.value)}
-                  />
+                    onClick={() => setFilterChambres(opt.value)} />
                 ))}
               </div>
             </div>
-
             <div className="filter-group">
               <span className="filter-label">Surface</span>
               <div className="filter-pills">
                 {SURFACE_OPTIONS.map((opt) => (
-                  <FilterPill
-                    key={opt.value}
-                    label={opt.label}
+                  <FilterPill key={opt.value} label={opt.label}
                     active={filterSurface === opt.value}
-                    onClick={() => setFilterSurface(opt.value)}
-                  />
+                    onClick={() => setFilterSurface(opt.value)} />
                 ))}
               </div>
             </div>
-
             <div className="filter-group">
               <span className="filter-label">Budget</span>
               <div className="filter-pills">
                 {BUDGET_OPTIONS.map((opt) => (
-                  <FilterPill
-                    key={opt.value}
-                    label={opt.label}
+                  <FilterPill key={opt.value} label={opt.label}
                     active={filterBudget === opt.value}
-                    onClick={() => setFilterBudget(opt.value)}
-                  />
+                    onClick={() => setFilterBudget(opt.value)} />
                 ))}
               </div>
             </div>
-
             <div className="filter-group filter-group-sort">
               <span className="filter-label">Trier par</span>
-              <select
-                className="filter-select"
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                aria-label="Trier les modèles"
-              >
+              <select className="filter-select" value={sort}
+                onChange={(e) => setSort(e.target.value)} aria-label="Trier les modèles">
                 {SORT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -447,23 +430,28 @@ export default function Maisons() {
             </div>
           </div>
 
-          {/* Résultat */}
           <div className="filters-result reveal">
             <span>
               <strong>{filteredHouses.length}</strong> modèle{filteredHouses.length > 1 ? "s" : ""}
               {hasFilters && (
                 <>
                   {" "}correspondant{filteredHouses.length > 1 ? "s" : ""} à vos critères
-                  <button className="reset-filters" onClick={resetFilters}>
-                    Réinitialiser
-                  </button>
+                  <button className="reset-filters" onClick={resetFilters}>Réinitialiser</button>
                 </>
               )}
             </span>
-            {error && <span className="api-note">{error}</span>}
+            {error && (
+              <span className="api-note">
+                Modèles par défaut —{" "}
+                <button type="button" onClick={reload}
+                  style={{ background: "none", border: "none", color: "inherit",
+                    textDecoration: "underline", cursor: "pointer", padding: 0, font: "inherit" }}>
+                  réessayer
+                </button>
+              </span>
+            )}
           </div>
 
-          {/* Loading */}
           {loading && (
             <div className="loading-grid">
               {[1, 2, 3].map((i) => (
@@ -479,29 +467,19 @@ export default function Maisons() {
             </div>
           )}
 
-          {/* Grille */}
           {!loading && filteredHouses.length > 0 && (
             <div className="grid-3">
               {filteredHouses.map((house, i) => (
-                <HouseCard
-                  key={house.id || i}
-                  house={house}
-                  index={i}
-                  onOpen={setSelectedHouse}
-                />
+                <HouseCard key={house.id || i} house={house} index={i} onOpen={setSelectedHouse} />
               ))}
             </div>
           )}
 
-          {/* Aucun résultat */}
           {!loading && filteredHouses.length === 0 && (
             <div className="empty-state reveal">
               <span className="empty-icon">◎</span>
               <h3>Aucun modèle ne correspond à ces critères.</h3>
-              <p>
-                Essayez d'élargir votre budget ou de réduire le nombre de chambres.
-                Ou parlons-en : nous avons peut-être le plan qu'il vous faut.
-              </p>
+              <p>Essayez d'élargir votre budget ou de réduire le nombre de chambres.</p>
               <div className="empty-actions">
                 <button className="btn btn-primary" onClick={resetFilters}>
                   Réinitialiser les filtres
@@ -518,38 +496,35 @@ export default function Maisons() {
         </div>
       </section>
 
-      {/* ============ COMPARATEUR RAPIDE ============ */}
+      {/* ============ COMPARATEUR ============ */}
       <section className="section comparateur">
         <div className="container">
           <div className="section-header reveal">
             <span className="section-label">Comparer</span>
-            <h2>Les 3 modèles, côte à côte.</h2>
+            <h2>Les {houses.length} modèles, côte à côte.</h2>
             <p>Un coup d'œil suffit pour voir ce qui change.</p>
           </div>
 
-          <div className="comparateur-table reveal" role="table" aria-label="Comparaison des 3 modèles">
+          <div className="comparateur-table reveal" role="table" aria-label="Comparaison des modèles">
             <div className="comp-row comp-head" role="row">
               <span role="columnheader" className="comp-critere">Critère</span>
-              {FALLBACK_HOUSES.map((h) => (
-                <span role="columnheader" key={h.id} className="comp-house-name">
-                  {h.name}
-                </span>
+              {houses.map((h) => (
+                <span role="columnheader" key={h.id} className="comp-house-name">{h.name}</span>
               ))}
             </div>
             {[
-              { key: "surface", label: "Surface", suffix: " m²" },
+              { key: "surface", label: "Surface" },
               { key: "chambres", label: "Chambres" },
               { key: "sallesBain", label: "Salles de bain" },
               { key: "niveaux", label: "Niveaux", format: (v) => `R+${v - 1}` },
               { key: "gamme", label: "Gamme" },
-              { key: "priceLabel", label: "À partir de" },
+              { key: "price", label: "À partir de" },
             ].map((row) => (
               <div className="comp-row" role="row" key={row.key}>
                 <span role="cell" className="comp-critere">{row.label}</span>
-                {FALLBACK_HOUSES.map((h) => (
+                {houses.map((h) => (
                   <span role="cell" key={h.id} className="comp-value">
                     {row.format ? row.format(h[row.key]) : h[row.key]}
-                    {row.suffix || ""}
                   </span>
                 ))}
               </div>
@@ -577,23 +552,17 @@ export default function Maisons() {
             <a href="/contact" className="btn btn-primary">
               Demander un devis <span aria-hidden>→</span>
             </a>
-            <a
-              href="https://wa.me/22500000000"
-              className="btn btn-ghost"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://wa.me/22500000000" className="btn btn-ghost"
+               target="_blank" rel="noopener noreferrer">
               WhatsApp direct
             </a>
           </div>
         </div>
       </section>
 
-      {/* ============ MODAL FICHE ============ */}
       {selectedHouse && (
         <HouseModal house={selectedHouse} onClose={() => setSelectedHouse(null)} />
       )}
-
     </main>
   );
 }

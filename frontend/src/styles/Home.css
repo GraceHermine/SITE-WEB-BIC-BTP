@@ -995,3 +995,24 @@
   .hero-scroll-hint { display: none; }
   .hero-bg-text { font-size: 8rem; }
 }
+
+
+/* ---------- ÉTATS API ---------- */
+.legal-text button.btn-outline {
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.legal-text[role="alert"] {
+  color: #b42318;
+}
+
+.legal-text[role="status"] {
+  color: var(--gray);
+}
+
+/* Skeleton optionnel : à activer si vous voulez */
+.house-card.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
