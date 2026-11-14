@@ -378,7 +378,7 @@ export default function Maisons() {
             <a href="#catalogue" className="btn btn-primary">
               Voir les {houses.length} modèles <span aria-hidden>→</span>
             </a>
-            <a href="/methode" className="btn btn-ghost">
+            <a href="/method" className="btn btn-ghost">
               Comprendre la méthode
             </a>
           </div>

@@ -324,14 +324,9 @@ function SectionStatus({ loading, error, onRetry, loadedMessage }) {
   }
   if (error) {
     return (
-      <div className="legal-text" role="alert">
-        {loadedMessage || "Contenu indisponible"} —{" "}
-        <button
-          type="button"
-          onClick={onRetry}
-          className="btn btn-outline"
-          style={{ padding: "8px 16px", marginLeft: 8 }}
-        >
+      <div className="legal-text status-error" role="alert">
+        <span>{loadedMessage || "Contenu indisponible"}</span>
+        <button type="button" onClick={onRetry} className="btn btn-outline btn-sm">
           Réessayer
         </button>
       </div>
@@ -554,25 +549,9 @@ function Home() {
             </div>
 
             {heroError && (
-              <div
-                className="legal-text"
-                role="alert"
-                style={{ color: "#fff", opacity: 0.7, fontSize: ".75rem" }}
-              >
+              <div className="legal-text hero-error" role="alert">
                 Slides par défaut —{" "}
-                <button
-                  type="button"
-                  onClick={reloadHero}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "inherit",
-                    textDecoration: "underline",
-                    cursor: "pointer",
-                    padding: 0,
-                    font: "inherit",
-                  }}
-                >
+                <button type="button" onClick={reloadHero} className="link-btn">
                   réessayer
                 </button>
               </div>
