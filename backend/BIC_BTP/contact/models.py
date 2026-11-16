@@ -1,48 +1,72 @@
 from django.db import models
+from django.utils import timezone
 
-
-class DemandeDevis(models.Model):
-    GAMME_CHOICES = [
-        ("", "Non précisée"),
-        ("essentiel", "Essentiel"),
-        ("confort", "Confort"),
-        ("prestige", "Prestige"),
-    ]
-    POSTE_CHOICES = [
-        ("", "Non précisé"),
-        ("sols", "Sols & carrelage"),
-        ("cuisine", "Cuisine équipée"),
-        ("sdb", "Salle de bain"),
-        ("menuiseries", "Menuiseries"),
-        ("peinture", "Peinture & décor"),
-        ("eclairage", "Éclairage"),
-    ]
+class ContactRequest(models.Model):
     STATUS_CHOICES = [
-        ("nouveau", "Nouveau"),
-        ("en_cours", "En cours"),
-        ("traite", "Traité"),
-        ("archive", "Archivé"),
+        ("received", "Reçue"),
+        ("processed", "Traitée"),
+        ("archived", "Archivée"),
+    ]
+    PROJET_CHOICES = [
+        ("construction", "Construction neuve"),
+        ("renovation", "Rénovation"),
+        ("extension", "Extension"),
+        ("amenagement", "Aménagement intérieur"),
+        ("indecis", "Je ne sais pas encore"),
+    ]
+    BUDGET_CHOICES = [
+        ("moins-50", "< 50 M FCFA"),
+        ("50-70", "50 – 70 M FCFA"),
+        ("70-100", "70 – 100 M FCFA"),
+        ("plus-100", "> 100 M FCFA"),
+        ("indecis", "Je ne sais pas"),
+    ]
+    DELAI_CHOICES = [
+        ("urgent", "Dès que possible"),
+        ("3mois", "Dans 3 mois"),
+        ("6mois", "Dans 6 mois"),
+        ("annee", "Dans l'année"),
+        ("reflechi", "Je me renseigne"),
+    ]
+    TERRAIN_CHOICES = [
+        ("oui-titre", "Oui, avec titre foncier"),
+        ("oui-sans", "Oui, sans titre"),
+        ("non", "Non, pas encore"),
+        ("recherche", "En recherche"),
     ]
 
-    nom = models.CharField(max_length=120)
-    email = models.EmailField()
-    telephone = models.CharField(max_length=40, blank=True)
-    message = models.TextField(blank=True)
+    reference = models.CharField(max_length=32, unique=True, db_index=True, editable=False)
 
-    # Contexte de la demande (query params du front)
-    gamme = models.CharField(max_length=20, choices=GAMME_CHOICES, blank=True, default="")
-    poste = models.CharField(max_length=20, choices=POSTE_CHOICES, blank=True, default="")
-    modele = models.CharField(max_length=80, blank=True)     # ex: f3, duplex
-    reference = models.CharField(max_length=80, blank=True)  # ex: id réalisation
+    # --- CHAMPS ALIGNÉS SUR LE DEVIS PDF ---
+    type_projet = models.CharField(max_length=32, choices=PROJET_CHOICES, default="construction")
+    localisation = models.CharField(max_length=255, help_text="Ville / Commune / Quartier")
+    surface_terrain = models.PositiveIntegerField(help_text="Surface en m²")
+    
+    budget = models.CharField(max_length=32, choices=BUDGET_CHOICES)
+    delai = models.CharField(max_length=32, choices=DELAI_CHOICES)
+    terrain = models.CharField(max_length=32, choices=TERRAIN_CHOICES, blank=True, null=True)
+    message = models.TextField(blank=True, default="", help_text="Détails supplémentaires")
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="nouveau")
+    # --- COORDONNÉES ---
+    nom = models.CharField(max_length=120, help_text="Nom ou Raison sociale")
+    email = models.EmailField(blank=True, null=True)
+    telephone = models.CharField(max_length=32)
+    consent = models.BooleanField(default=False)
+
+    # --- SUIVI TECHNIQUE ---
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.CharField(max_length=512, blank=True, default="")
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default="received")
+    
+    # Suivi e-mail
+    email_sent = models.BooleanField(default=False)
+    email_attempts = models.PositiveIntegerField(default=0)
+    email_last_error = models.TextField(blank=True, null=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
-        verbose_name = "Demande de devis"
-        verbose_name_plural = "Demandes de devis"
 
     def __str__(self):
-        return f"{self.nom} — {self.created_at:%d/%m/%Y}"
+        return f"{self.reference} — {self.nom} ({self.type_projet})"

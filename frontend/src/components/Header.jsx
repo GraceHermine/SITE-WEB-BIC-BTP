@@ -43,7 +43,7 @@ export default function Header() {
       <div className={`mobile-nav ${isMenuOpen ? "open" : ""}`}>
         <nav>
           <a href="/" onClick={toggleMenu}>Accueil</a>
-          <a href="/methode" onClick={toggleMenu}>Notre méthode</a>
+          <a href="/method" onClick={toggleMenu}>Notre méthode</a>
           <a href="/maisons" onClick={toggleMenu}>Nos maisons</a>
           <a href="/finitions" onClick={toggleMenu}>Finitions</a>
           <a href="/realisations" onClick={toggleMenu}>Réalisations</a>

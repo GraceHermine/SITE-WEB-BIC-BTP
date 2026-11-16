@@ -10,13 +10,11 @@ def health(_request):
 
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("api/health/", health, name="health"),
-    # ⚠️ catalog EN PREMIER : il contient la route "" = /api/
+    path("admin/", admin.site.urls), 
     path("api/", include("catalog.urls")),
     path("api/", include("finitions.urls")),
     path("api/", include("realisations.urls")),
-    path("api/", include("contact.urls")),
+    path("api/contact/", include("contact.urls")),
 ]
 
 if settings.DEBUG:

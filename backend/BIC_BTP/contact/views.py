@@ -1,50 +1,81 @@
-from django.conf import settings
-from django.core.mail import send_mail
-from rest_framework import viewsets, mixins
-from rest_framework.permissions import AllowAny, IsAdminUser
+import uuid
+import logging
+from datetime import timedelta
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.throttling import ScopedRateThrottle
 
-from .models import DemandeDevis
-from .serializers import DemandeDevisSerializer
+from .models import ContactRequest
+from .serializers import ContactSerializer
+from .services import try_send_team_email, send_client_confirmation
 
+logger = logging.getLogger(__name__)
 
-class DemandeDevisViewSet(
-    mixins.CreateModelMixin,
-    mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
-    viewsets.GenericViewSet,
-):
-    """
-    POST   /api/contact/            → public (formulaire)
-    GET    /api/contact/            → admin (liste)
-    GET    /api/contact/<id>/       → admin (détail)
-    (pas de PUT/PATCH/DELETE exposés pour l'instant)
-    """
-    queryset = DemandeDevis.objects.all()
-    serializer_class = DemandeDevisSerializer
+def _new_reference() -> str:
+    return f"DEV-{timezone.now().year}-{uuid.uuid4().hex[:6].upper()}"
 
-    def get_permissions(self):
-        if self.request.method == "POST":
-            return [AllowAny()]
-        return [IsAdminUser()]
+class ContactCreateView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "contact"
 
-    def perform_create(self, serializer):
-        instance = serializer.save()
-        try:
-            send_mail(
-                subject=f"[BIC BTP] Nouvelle demande — {instance.nom}",
-                message=(
-                    f"Nom: {instance.nom}\n"
-                    f"Email: {instance.email}\n"
-                    f"Téléphone: {instance.telephone}\n"
-                    f"Gamme: {instance.gamme or '-'}\n"
-                    f"Poste: {instance.poste or '-'}\n"
-                    f"Modèle: {instance.modele or '-'}\n"
-                    f"Référence: {instance.reference or '-'}\n\n"
-                    f"Message:\n{instance.message}"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[settings.CONTACT_NOTIFICATION_EMAIL],
-                fail_silently=True,
+    def post(self, request):
+        serializer = ContactSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"detail": "Validation failed", "errors": serializer.errors},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        except Exception:
-            pass
+
+        data = serializer.validated_data
+
+        # Honeypot (anti-bot)
+        if data.get("_hp"):
+            return Response({"id": 0, "reference": "DEV-0000", "status": "received"}, status=201)
+
+        # Idempotence (évite les doublons sur 2 minutes)
+        recent = ContactRequest.objects.filter(
+            telephone=data["telephone"],
+            created_at__gte=timezone.now() - timedelta(minutes=2),
+        ).first()
+        
+        if recent:
+            return Response({"id": recent.id, "reference": recent.reference, "status": recent.status}, status=201)
+
+        # Création de la demande
+        record = ContactRequest.objects.create(
+            reference=_new_reference(),
+            type_projet=data["type_projet"],
+            localisation=data["localisation"],
+            surface_terrain=data["surface_terrain"],
+            budget=data["budget"],
+            delai=data["delai"],
+            terrain=data.get("terrain"),
+            message=data.get("message", ""),
+            nom=data["nom"],
+            email=data.get("email"),
+            telephone=data["telephone"],
+            consent=data["consent"],
+            ip_address=self._client_ip(request),
+        )
+
+        # Envoi e-mail équipe + client
+        try_send_team_email(record)
+        send_client_confirmation(record)
+
+        return Response(
+            {
+                "id": record.id,
+                "reference": record.reference,
+                "status": record.status,
+                "message": "Votre demande a bien été reçue.",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @staticmethod
+    def _client_ip(request):
+        xff = request.META.get("HTTP_X_FORWARDED_FOR")
+        if xff: return xff.split(",")[0].strip()
+        return request.META.get("REMOTE_ADDR")

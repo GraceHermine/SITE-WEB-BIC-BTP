@@ -1,10 +1,6 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from . import views
-
-router = DefaultRouter()
-router.register("contact", views.DemandeDevisViewSet, basename="contact")
+from django.urls import path
+from .views import ContactCreateView
 
 urlpatterns = [
-    path("", include(router.urls)),
+    path("", ContactCreateView.as_view(), name="contact-create"),
 ]

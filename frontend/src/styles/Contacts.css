@@ -1150,3 +1150,17 @@
   .hero-grid { opacity: 1; }
   .hero-beam { display: none; }
 }
+
+/* =========================================================
+   AJOUTS FORMULAIRE (hints, honeypot)
+   ========================================================= */
+.form-hint {
+  font-size: 0.82rem;
+  color: var(--gray);
+  margin: -8px 0 20px;
+  line-height: 1.5;
+  padding: 10px 14px;
+  background: rgba(30, 91, 216, 0.04);
+  border-left: 3px solid var(--blue);
+  border-radius: 6px;
+}

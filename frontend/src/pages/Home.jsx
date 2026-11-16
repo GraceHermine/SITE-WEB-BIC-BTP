@@ -217,10 +217,14 @@ function useCountUp(target, duration = 1400, start = false) {
 /** Parallaxe légère sur le hero. */
 function useParallax(ref, factor = 0.25) {
   useEffect(() => {
+    // ✅ FIX : désactive sur mobile/reduced-motion
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (isMobile || reduceMotion) return;
+
     const onScroll = () => {
       if (!ref.current) return;
-      const y = window.scrollY;
-      ref.current.style.transform = `translate3d(0, ${y * factor}px, 0)`;
+      ref.current.style.transform = `translate3d(0, ${window.scrollY * factor}px, 0)`;
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
