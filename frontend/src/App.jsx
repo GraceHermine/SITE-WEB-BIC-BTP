@@ -7,6 +7,8 @@ import Method from './pages/Method.jsx';
 import Maisons from './pages/Maisons.jsx';
 import Finitions from './pages/Finitions.jsx';
 import Realisations from './pages/Realisations.jsx';
+import About from './pages/About.jsx';
+import Contacts from './pages/Contacts.jsx';
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
           <Route path="/maisons" element={<Maisons />} />
           <Route path="/finitions" element={<Finitions />} />
           <Route path="/realisations" element={<Realisations />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contacts />} />
         </Routes>                 
       </main>
       <Footer />

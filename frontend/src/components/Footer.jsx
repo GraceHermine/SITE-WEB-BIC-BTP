@@ -34,12 +34,12 @@ const FALLBACK_INFO = {
 
 /* Colonnes par défaut si l'API ne fournit pas `footer_columns` */
 const DEFAULT_NAV_LINKS = [
-  { label: "Notre méthode", url: "/methode" },
+  { label: "Notre méthode", url: "/method" },
   { label: "Nos maisons", url: "/maisons" },
   { label: "Finitions", url: "/finitions" },
   { label: "Réalisations", url: "/realisations" },
-  { label: "À propos", url: "/a-propos" },
-  { label: "Devis & contact", url: "/devis" },
+  { label: "À propos", url: "/about" },
+  { label: "Devis & contact", url: "/contact" },
 ];
 
 const DEFAULT_LEGAL_LINKS = [
