@@ -728,12 +728,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useInfo } from "../hooks/useInfo";
 import "../styles/Contacts.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 /* =========================================================
-   DONNÉES
+   DONNÉES STATIQUES
    ========================================================= */
 const PROJETS = [
   { id: "construction", label: "Construction neuve" },
@@ -766,45 +767,6 @@ const TERRAINS = [
   { id: "recherche", label: "En recherche" },
 ];
 
-const CANAUX = [
-  {
-    id: "whatsapp",
-    icon: "◉",
-    title: "WhatsApp",
-    desc: "Le plus rapide. Réponse en moins d'une heure.",
-    value: "+225 00 00 00 00 00",
-    href: "https://wa.me/22500000000",
-    accent: "#25D366",
-  },
-  {
-    id: "phone",
-    icon: "☎",
-    title: "Téléphone",
-    desc: "Du lundi au samedi, 8h – 18h.",
-    value: "+225 00 00 00 00 00",
-    href: "tel:+22500000000",
-    accent: "#1E5BD8",
-  },
-  {
-    id: "email",
-    icon: "✉",
-    title: "E-mail",
-    desc: "Pour les dossiers détaillés et les plans.",
-    value: "contact@bicbtp.ci",
-    href: "mailto:contact@bicbtp.ci",
-    accent: "#0E2A5C",
-  },
-  {
-    id: "visite",
-    icon: "⌖",
-    title: "Visite",
-    desc: "Sur rendez-vous — chantier ou bureau.",
-    value: "Abidjan, Côte d'Ivoire",
-    href: null,
-    accent: "#E8833A",
-  },
-];
-
 const ETAPES_FORM = [
   { id: "projet", label: "Votre projet" },
   { id: "besoins", label: "Vos besoins" },
@@ -813,7 +775,7 @@ const ETAPES_FORM = [
 
 const AIDES_ETAPES = {
   0: "Dites-nous quel type de projet vous envisagez et où se situe le terrain.",
-  1: "Ces détails nous aident à préparer un chiffrage réaliste (comme sur un devis).",
+  1: "Ces détails nous aident à préparer un chiffrage réaliste.",
   2: "Nous ne partageons vos coordonnées avec personne. Un seul humain vous rappellera.",
 };
 
@@ -830,6 +792,18 @@ const FORM_VIDE = {
   telephone: "",
   consent: false,
   _hp: "",
+};
+
+/* =========================================================
+   FALLBACKS (si l'API info est indisponible)
+   ========================================================= */
+const FALLBACK_CONTACT = {
+  whatsapp: "22500000000",
+  phone: "+225 00 00 00 00 00",
+  email: "contact@bicbtp.ci",
+  city: "Abidjan",
+  country: "Côte d'Ivoire",
+  hours: "Du lundi au samedi, 8h – 18h.",
 };
 
 /* =========================================================
@@ -870,12 +844,12 @@ function validateField(key, value) {
 }
 
 /* =========================================================
-   HOOK + WRAPPER : apparition au scroll (compatible re-render)
+   HOOK REVEAL
    ========================================================= */
 function useRevealRef() {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
-  
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -891,18 +865,16 @@ function useRevealRef() {
     io.observe(el);
     return () => io.disconnect();
   }, []);
-  
+
   return [ref, visible];
 }
 
 function Reveal({ as: Tag = "div", className = "", delay = 0, style, children, ...rest }) {
   const [ref, visible] = useRevealRef();
-  
   const mergedStyle = {
     ...(delay ? { transitionDelay: `${delay}ms` } : {}),
     ...style,
   };
-
   return (
     <Tag
       ref={ref}
@@ -920,6 +892,59 @@ function Reveal({ as: Tag = "div", className = "", delay = 0, style, children, .
    ========================================================= */
 export default function Contacts() {
   const [searchParams] = useSearchParams();
+  const { info } = useInfo();
+
+  /* Construit les canaux depuis l'API info (fallback si indisponible) */
+  const canaux = useMemo(() => {
+    const waNumber = info?.whatsapp_number || FALLBACK_CONTACT.whatsapp;
+    const phone = info?.phone_primary || FALLBACK_CONTACT.phone;
+    const email = info?.email_primary || FALLBACK_CONTACT.email;
+    const city = info?.city || FALLBACK_CONTACT.city;
+    const country = info?.country || FALLBACK_CONTACT.country;
+    const hours = info?.opening_hours || FALLBACK_CONTACT.hours;
+
+    return [
+      {
+        id: "whatsapp",
+        icon: "◉",
+        title: "WhatsApp",
+        desc: "Le plus rapide. Réponse en moins d'une heure.",
+        value: `+${waNumber}`,
+        href: `https://wa.me/${waNumber}`,
+        accent: "#25D366",
+      },
+      {
+        id: "phone",
+        icon: "☎",
+        title: "Téléphone",
+        desc: hours,
+        value: phone,
+        href: `tel:${phone.replace(/\s/g, "")}`,
+        accent: "#1E5BD8",
+      },
+      {
+        id: "email",
+        icon: "✉",
+        title: "E-mail",
+        desc: "Pour les dossiers détaillés et les plans.",
+        value: email,
+        href: `mailto:${email}`,
+        accent: "#0E2A5C",
+      },
+      {
+        id: "visite",
+        icon: "⌖",
+        title: "Visite",
+        desc: "Sur rendez-vous — chantier ou bureau.",
+        value: [city, country].filter(Boolean).join(", "),
+        href: null,
+        accent: "#E8833A",
+      },
+    ];
+  }, [info]);
+
+  const waHref = `https://wa.me/${info?.whatsapp_number || FALLBACK_CONTACT.whatsapp}`;
+  const telHref = `tel:${(info?.phone_primary || FALLBACK_CONTACT.phone).replace(/\s/g, "")}`;
 
   /* Pré-remplissage contextuel */
   const initialProjet = useMemo(
@@ -938,13 +963,12 @@ export default function Contacts() {
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-  const [status, setStatus] = useState("idle"); // idle | sending | success | error
+  const [status, setStatus] = useState("idle");
   const [serverError, setServerError] = useState(null);
   const [reference, setReference] = useState(null);
 
   const formRef = useRef(null);
 
-  /* Mise à jour d'un champ */
   const setField = (key, value) => {
     setForm((f) => {
       const next = { ...f, [key]: value };
@@ -960,7 +984,6 @@ export default function Contacts() {
     setErrors((e) => ({ ...e, [key]: validateField(key, form[key]) }));
   };
 
-  /* Validation par étape */
   const validateStep = (stepIndex) => {
     const keysByStep = {
       0: ["type_projet", "localisation", "surface_terrain"],
@@ -989,7 +1012,6 @@ export default function Contacts() {
     if (etape > 0) setEtape(etape - 1);
   };
 
-  /* Envoi */
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validateStep(2);
@@ -1042,17 +1064,13 @@ export default function Contacts() {
     }
   };
 
-  /* Scroll top à changement d'étape */
   useEffect(() => {
     if (formRef.current) {
       formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [etape]);
 
-  /* Progression */
   const progress = ((etape + 1) / ETAPES_FORM.length) * 100;
-
-  /* Désactivation du bouton Continuer */
   const stepInvalide = Object.keys(validateStep(etape)).length > 0;
 
   return (
@@ -1085,7 +1103,7 @@ export default function Contacts() {
         </div>
       </section>
 
-      {/* ============ CANAUX DE CONTACT ============ */}
+      {/* ============ CANAUX ============ */}
       <section className="section canaux">
         <div className="container">
           <Reveal className="section-header">
@@ -1095,7 +1113,7 @@ export default function Contacts() {
           </Reveal>
 
           <div className="canaux-grid">
-            {CANAUX.map((c, i) => (
+            {canaux.map((c, i) => (
               <Reveal
                 key={c.id}
                 as="a"
@@ -1117,10 +1135,9 @@ export default function Contacts() {
         </div>
       </section>
 
-      {/* ============ FORMULAIRE MULTI-ÉTAPES ============ */}
+      {/* ============ FORMULAIRE ============ */}
       <section className="section formulaire" id="formulaire">
         <div className="container formulaire-layout">
-          {/* Colonne gauche : intro */}
           <Reveal as="aside" className="formulaire-intro">
             <span className="section-label">Devis</span>
             <h2>Parlons de votre projet.</h2>
@@ -1154,7 +1171,6 @@ export default function Contacts() {
               </li>
             </ul>
 
-            {/* Contexte détecté */}
             {(form.type_projet || form.budget) && (
               <div className="contexte-detecte">
                 <span className="contexte-label">Contexte détecté</span>
@@ -1177,10 +1193,8 @@ export default function Contacts() {
             )}
           </Reveal>
 
-          {/* Colonne droite : formulaire (enveloppé dans Reveal + div interne pour le ref) */}
           <Reveal className="form-card">
             <div ref={formRef}>
-              {/* Succès */}
               {status === "success" && (
                 <div className="form-success">
                   <span className="success-icon" aria-hidden>✓</span>
@@ -1192,7 +1206,7 @@ export default function Contacts() {
                   </p>
                   <div className="success-actions">
                     <a
-                      href="https://wa.me/22500000000"
+                      href={waHref}
                       className="btn btn-primary"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -1210,15 +1224,12 @@ export default function Contacts() {
                 </div>
               )}
 
-              {/* Formulaire */}
               {status !== "success" && (
                 <>
-                  {/* Barre de progression */}
                   <div className="form-progress">
                     <div className="form-progress-bar" style={{ width: `${progress}%` }} />
                   </div>
 
-                  {/* Stepper */}
                   <div className="form-stepper">
                     {ETAPES_FORM.map((e, i) => (
                       <div
@@ -1232,7 +1243,6 @@ export default function Contacts() {
                   </div>
 
                   <form onSubmit={handleSubmit} noValidate>
-                    {/* Honeypot anti-bot */}
                     <input
                       type="text"
                       name="_hp"
@@ -1243,7 +1253,6 @@ export default function Contacts() {
                       autoComplete="off"
                     />
 
-                    {/* ÉTAPE 1 : PROJET */}
                     {etape === 0 && (
                       <div className="form-step">
                         <h3 className="form-step-title">Votre projet</h3>
@@ -1313,7 +1322,6 @@ export default function Contacts() {
                       </div>
                     )}
 
-                    {/* ÉTAPE 2 : BESOINS */}
                     {etape === 1 && (
                       <div className="form-step">
                         <h3 className="form-step-title">Vos besoins</h3>
@@ -1402,7 +1410,6 @@ export default function Contacts() {
                       </div>
                     )}
 
-                    {/* ÉTAPE 3 : COORDONNÉES */}
                     {etape === 2 && (
                       <div className="form-step">
                         <h3 className="form-step-title">Vos coordonnées</h3>
@@ -1489,17 +1496,15 @@ export default function Contacts() {
                       </div>
                     )}
 
-                    {/* Erreur serveur */}
                     {serverError && (
                       <div className="form-server-error">
                         {serverError}{" "}
-                        <a href="https://wa.me/22500000000" target="_blank" rel="noopener noreferrer">
+                        <a href={waHref} target="_blank" rel="noopener noreferrer">
                           Ouvrir WhatsApp
                         </a>
                       </div>
                     )}
 
-                    {/* Actions */}
                     <div className="form-actions">
                       {etape > 0 && (
                         <button
@@ -1582,14 +1587,14 @@ export default function Contacts() {
           <p>C'est tout ce qu'il faut pour démarrer.</p>
           <div className="cta-actions">
             <a
-              href="https://wa.me/22500000000"
+              href={waHref}
               className="btn btn-primary"
               target="_blank"
               rel="noopener noreferrer"
             >
               Écrire sur WhatsApp <span aria-hidden>→</span>
             </a>
-            <a href="tel:+22500000000" className="btn btn-ghost">
+            <a href={telHref} className="btn btn-ghost">
               Appeler maintenant
             </a>
           </div>
@@ -1600,7 +1605,7 @@ export default function Contacts() {
 }
 
 /* =========================================================
-   FAQ ITEM (accordéon)
+   FAQ ITEM
    ========================================================= */
 function FaqItem({ question, answer, index }) {
   const [open, setOpen] = useState(false);

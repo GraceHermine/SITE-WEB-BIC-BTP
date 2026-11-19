@@ -17,6 +17,10 @@
   --shadow-md: 0 16px 40px rgba(14, 42, 92, 0.1);
   --shadow-lg: 0 24px 60px rgba(14, 42, 92, 0.18);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Sécurité anti-débordement horizontal */
+  overflow-x: clip;
+  max-width: 100vw;
 }
 
 .finitions-page .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
@@ -238,7 +242,7 @@
 .gammes-section { background: var(--white); }
 .gammes-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
 .gamme-card {
@@ -251,6 +255,7 @@
   transition: all 0.35s var(--ease);
   position: relative; overflow: hidden;
   font-family: inherit;
+  min-width: 0;
 }
 .gamme-card::before {
   content: "";
@@ -326,7 +331,7 @@
 .configurateur { background: var(--light); }
 .config-layout {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
   gap: 32px;
   align-items: flex-start;
 }
@@ -336,12 +341,14 @@
   padding: 24px;
   box-shadow: var(--shadow-sm);
   position: sticky; top: 100px;
+  min-width: 0;
 }
 .config-postes-header {
   display: flex; justify-content: space-between; align-items: center;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--light);
   margin-bottom: 16px;
+  gap: 10px;
 }
 .config-postes-label {
   font-size: 0.72rem;
@@ -357,6 +364,7 @@
   padding: 4px 10px;
   border-radius: 100px;
   background: color-mix(in srgb, currentColor 10%, transparent);
+  white-space: nowrap;
 }
 .config-postes-list {
   list-style: none; padding: 0; margin: 0;
@@ -369,6 +377,7 @@
   text-align: left; cursor: pointer;
   transition: background 0.2s, transform 0.2s var(--ease);
   font-family: inherit; font-size: 0.92rem; color: var(--navy);
+  min-width: 0;
 }
 .config-poste-btn:hover { background: var(--light); transform: translateX(3px); }
 .config-poste-btn.is-active { background: var(--navy); color: #fff; }
@@ -383,10 +392,18 @@
   background: rgba(255,255,255,0.15); color: #fff;
   transform: rotate(-6deg);
 }
-.config-poste-title { flex: 1; font-weight: 500; }
+.config-poste-title {
+  flex: 1;
+  font-weight: 500;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .config-poste-arrow {
   font-size: 0.9rem; opacity: 0; transform: translateX(-4px);
   transition: all 0.2s var(--ease);
+  flex-shrink: 0;
 }
 .config-poste-btn:hover .config-poste-arrow,
 .config-poste-btn.is-active .config-poste-arrow {
@@ -399,6 +416,8 @@
   padding: 34px;
   box-shadow: var(--shadow-sm);
   animation: fadeSlide 0.45s var(--ease);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 @keyframes fadeSlide {
   from { opacity: 0; transform: translateY(14px); }
@@ -409,7 +428,9 @@
   padding-bottom: 24px;
   border-bottom: 1px solid var(--light);
   margin-bottom: 24px;
+  min-width: 0;
 }
+.config-detail-head > div { min-width: 0; }
 .config-detail-icon {
   width: 56px; height: 56px; border-radius: 12px;
   background: linear-gradient(135deg, var(--light), #fff);
@@ -434,6 +455,7 @@
   background: var(--white);
   transition: all 0.25s var(--ease);
   position: relative;
+  min-width: 0;
 }
 .config-option:hover { border-color: color-mix(in srgb, var(--opt-color) 40%, var(--light)); }
 .config-option.is-active {
@@ -449,6 +471,8 @@
 .config-option p {
   flex: 1; color: var(--gray);
   font-size: 0.9rem; line-height: 1.55; margin: 0;
+  min-width: 0;
+  word-break: break-word;
 }
 .config-option.is-active p { color: var(--navy); font-weight: 500; }
 .config-option-check {
@@ -471,6 +495,7 @@
   margin-bottom: 28px;
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 .config-ambiance::before {
   content: "";
@@ -494,7 +519,7 @@
   line-height: 1.55;
   margin-bottom: 16px;
 }
-.config-swatches { display: flex; gap: 8px; }
+.config-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
 .swatch {
   width: 40px; height: 40px;
   border-radius: 10px;
@@ -513,7 +538,7 @@
 .postes-detail { background: var(--white); }
 .postes-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 22px;
 }
 
@@ -524,6 +549,7 @@
   border: 1px solid var(--light);
   padding: 30px 26px;
   display: flex; flex-direction: column;
+  min-width: 0;
 
   /* état initial animé (indépendant du .reveal générique) */
   opacity: 0;
@@ -623,21 +649,13 @@
   }
 }
 
-/* Responsive (conservé) */
-@media (max-width: 1024px) {
-  .postes-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 768px) {
-  .postes-grid { grid-template-columns: 1fr; }
-}
-
 /* =========================================================
    AMBIANCES PAR GAMME
    ========================================================= */
 .ambiances { background: var(--light); }
 .ambiances-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
 .ambiance-card {
@@ -649,6 +667,7 @@
   transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease), border-color 0.3s;
   text-align: left; font-family: inherit;
   display: flex; flex-direction: column;
+  min-width: 0;
 }
 .ambiance-card:hover {
   transform: translateY(-6px);
@@ -682,7 +701,7 @@
   transition: transform 0.3s var(--ease);
 }
 .ambiance-card:hover .swatch-large { transform: translateY(-4px); }
-.ambiance-body { padding: 22px 24px 24px; flex: 1; }
+.ambiance-body { padding: 22px 24px 24px; flex: 1; min-width: 0; }
 .ambiance-name {
   display: inline-block;
   font-size: 0.72rem; font-weight: 700;
@@ -792,18 +811,29 @@
   .finitions-hero { padding: 120px 0 80px; }
   .finitions-hero-stats { gap: 28px; }
   .gammes-grid { grid-template-columns: 1fr; }
-  .postes-grid { grid-template-columns: repeat(2, 1fr); }
+  .postes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ambiances-grid { grid-template-columns: 1fr; }
 
-  .config-layout { grid-template-columns: 1fr; gap: 24px; }
-  .config-postes { position: static; }
+  .config-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .config-postes {
+    position: static;
+    min-width: 0;
+  }
   .config-postes-list {
     flex-direction: row;
     overflow-x: auto;
     padding-bottom: 8px;
     scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
   }
-  .config-poste-btn { flex-shrink: 0; min-width: 160px; }
+  .config-poste-btn {
+    flex-shrink: 0;
+    min-width: 160px;
+    max-width: 220px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -816,15 +846,17 @@
 
   .postes-grid { grid-template-columns: 1fr; }
 
-  .config-detail { padding: 24px 20px; }
+  .config-detail { padding: 24px 20px; min-width: 0; }
   .config-detail-head { flex-direction: column; gap: 14px; }
   .config-option {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+    position: relative;
   }
+  .config-option-label { min-width: 0; }
   .config-option-check { position: absolute; top: 12px; right: 12px; }
-  .config-option { position: relative; }
+  .config-swatches { flex-wrap: wrap; }
 
   .swatch { width: 32px; height: 32px; }
   .swatch-large { width: 26px; height: 26px; }
@@ -902,8 +934,8 @@
   z-index: 0;
   pointer-events: none;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(5, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
   gap: 8px;
   transform: perspective(1200px) rotateY(-14deg) rotateX(6deg);
   transform-origin: right bottom;
@@ -959,7 +991,6 @@
 .finitions-hero-block.is-empty { visibility: hidden; }
 
 /* --- Ligne de grue / cote qui balaye le hero --- */
-.finitions-hero-bg::before { /* on garde la grille existante, on ajoute un balayage */ }
 .finitions-hero-scan {
   position: absolute;
   inset: 0;
