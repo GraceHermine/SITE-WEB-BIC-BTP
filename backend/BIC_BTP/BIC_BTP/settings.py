@@ -167,5 +167,5 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "mjbl gydr aujz cgho")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "contact@bicbtp.ci")
 
 # Destinataires internes (équipe qui traite les demandes)
-CONTACT_TEAM_EMAILS = [e.strip() for e in os.getenv("CONTACT_TEAM_EMAILS", "dedjenehermine@gmail.com").split(",")]
+CONTACT_TEAM_EMAILS = [e.strip() for e in os.getenv("CONTACT_TEAM_EMAILS", "info@bic-btp.com").split(",")]
 CONTACT_WHATSAPP_URL = os.getenv("CONTACT_WHATSAPP_URL", "https://wa.me/22500000000")
